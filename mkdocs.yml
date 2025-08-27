@@ -1,0 +1,52 @@
+site_name: GitHub 每日热门
+site_description: GitHub 每日热门
+site_author: GitHub Trending Bot
+
+# 主题配置
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+
+# 导航配置
+nav:
+  - 首页: daily-trending/trending-today.md
+  - 历史记录: daily-trending/
+  # - 关于: about.md
+
+# 插件配置
+plugins:
+  - search
+
+# 额外配置
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com
+
+# 版权信息
+copyright: Copyright &copy; 2024 GitHub Trending Bot
+
+# 构建配置
+docs_dir: mkdocs
+site_dir: site
