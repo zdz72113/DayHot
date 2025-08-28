@@ -92,6 +92,41 @@ class DeepSeekTranslator:
         
         return translated_repos
     
+    def translate_products(self, products: List[Dict]) -> List[Dict]:
+        """
+        批量翻译产品信息
+        
+        Args:
+            products: 产品信息列表
+            
+        Returns:
+            包含中文翻译的产品信息列表
+        """
+        translated_products = []
+        
+        for i, product in enumerate(products):
+            try:
+                logger.info(f"正在翻译第 {i+1}/{len(products)} 个产品: {product['name']}")
+                
+                # 翻译描述
+                if product.get('description'):
+                    product['description_zh'] = self.translate_text(product['description'])
+                else:
+                    product['description_zh'] = ""
+                
+                # 添加延迟避免API限制
+                time.sleep(1)
+                
+                translated_products.append(product)
+                
+            except Exception as e:
+                logger.error(f"翻译产品 {product['name']} 时出错: {e}")
+                # 如果翻译失败，保留原文
+                product['description_zh'] = product.get('description', '')
+                translated_products.append(product)
+        
+        return translated_products
+    
     def _call_deepseek_api(self, prompt: str) -> str:
         """
         调用DeepSeek API

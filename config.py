@@ -12,7 +12,7 @@ class Config:
     DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
     
     # 输出路径配置
-    OUTPUT_DIR = os.path.join('./mkdocs', 'daily-trending')
+    OUTPUT_DIR = os.path.join('./mkdocs')
     
     @classmethod
     def validate(cls):

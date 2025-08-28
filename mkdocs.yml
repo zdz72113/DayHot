@@ -1,6 +1,6 @@
-site_name: GitHub 每日热门
-site_description: GitHub 每日热门
-site_author: GitHub Trending Bot
+site_name: 每日热门
+site_description: GitHub 每日热门项目和 ProductHunt 每日热门产品
+site_author: DayHot Bot
 
 # 主题配置
 theme:
@@ -30,8 +30,9 @@ theme:
 
 # 导航配置
 nav:
-  - 首页: daily-trending/trending-today.md
-  - 历史记录: daily-trending/
+  - 首页: index.md
+  - GitHub 历史记录: github-history.md
+  - ProductHunt 历史记录: producthunt-history.md
   # - 关于: about.md
 
 # 插件配置
@@ -45,7 +46,7 @@ extra:
       link: https://github.com
 
 # 版权信息
-copyright: Copyright &copy; 2024 GitHub Trending Bot
+copyright: Copyright &copy; 2024 DayHot Bot
 
 # 构建配置
 docs_dir: mkdocs
