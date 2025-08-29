@@ -8,7 +8,7 @@
 - **ProductHunt 热门产品抓取**: 自动抓取 ProductHunt 页面的热门产品
 - **AI 翻译**: 使用 DeepSeek AI 将项目描述翻译成中文
 - **自动生成文档**: 生成结构化的 Markdown 文档
-- **静态网站**: 使用 MkDocs 构建美观的静态网站
+- **静态网站**: 使用 MkDocs 构建静态网站
 - **每日更新**: 支持定时任务自动更新
 
 ## 📁 项目结构
@@ -43,60 +43,29 @@ pip install -r requirements.txt
 创建 `.env` 文件并设置以下环境变量：
 
 ```env
+# DeepSeek API配置
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_BASE_URL=https://api.deepseek.com
+
+# Product Hunt配置
+PRODUCTHUNT_DEVELOPER_TOKEN=your_producthunt_developer_token_here
+PRODUCTHUNT_CLIENT_ID=your_producthunt_api_key_here
+PRODUCTHUNT_CLIENT_SECRET=your_producthunt_api_secret_here
 ```
 
 ### 3. 运行程序
+
+单次运行
 
 ```bash
 python main.py
 ```
 
-### 4. 构建网站
-
-```bash
-python build_site.py build
-```
-
-### 5. 启动开发服务器
-
-```bash
-python build_site.py serve
-```
-
-## 📊 输出文件
-
-程序运行后会在 `mkdocs/daily-trending/` 目录下生成以下文件：
-
-- `trending-today.md` - 今日热门（主页）
-- `github-trending-YYYY-MM-DD.md` - GitHub 每日详细列表
-- `producthunt-YYYY-MM-DD.md` - ProductHunt 每日详细列表
-
-## 🔧 配置说明
-
-### 环境变量
-
-- `DEEPSEEK_API_KEY`: DeepSeek AI API 密钥（必需）
-- `DEEPSEEK_BASE_URL`: DeepSeek API 基础 URL（可选，默认为 https://api.deepseek.com）
-
-### 输出目录
-
-- 默认输出目录: `./mkdocs/daily-trending/`
-- 网站构建目录: `./site/`
-
-## 📅 定时任务
-
-可以使用 `scheduler.py` 设置定时任务：
+使用 `scheduler.py` 设置定时任务：
 
 ```bash
 python scheduler.py
 ```
-
-支持以下定时选项：
-- 每日凌晨 2 点自动运行
-- 可自定义运行时间
-- 支持多种编程语言筛选
 
 ## 🌐 网站功能
 
@@ -108,31 +77,9 @@ python scheduler.py
 
 ## 🛠️ 技术栈
 
-- **Python 3.8+**: 主要编程语言
-- **BeautifulSoup4**: 网页解析
-- **Requests**: HTTP 请求
+- **Python**: 主要编程语言
 - **DeepSeek AI**: 文本翻译
 - **MkDocs**: 静态网站生成
-- **Material for MkDocs**: 网站主题
-
-## 📝 使用示例
-
-### 抓取特定语言的项目
-
-```python
-from main import DayHotTool
-
-tool = DayHotTool()
-# 抓取 Python 项目
-tool.run_once(language="python", since="daily")
-```
-
-### 自定义时间范围
-
-```python
-# 抓取本周热门项目
-tool.run_once(language="any", since="weekly")
-```
 
 ## 🤝 贡献
 

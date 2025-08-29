@@ -58,7 +58,6 @@ class MarkdownGenerator:
     def _generate_github_markdown_content(self, repositories: List[Dict], date: datetime) -> str:
         """生成GitHub Markdown内容"""
         date_str = date.strftime('%Y年%m月%d日')
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         # 生成头部
         content = [
@@ -81,31 +80,11 @@ class MarkdownGenerator:
         for i, repo in enumerate(repositories, 1):
             content.append(self._generate_repository_section(repo, i))
         
-        # 添加统计信息
-        content.extend([
-            "## 📈 统计信息",
-            "",
-            "| 指标 | 数值 |",
-            "|------|------|",
-            f"| 总项目数 | {len(repositories)} |",
-            f"| 主要语言 | {self._get_top_languages(repositories)} |",
-            "",
-            "## 🔗 相关链接",
-            "",
-            "- [GitHub Trending](https://github.com/trending) - 官方趋势页面",
-            "- [历史记录](../) - 查看历史趋势",
-            "",
-            "---",
-            "",
-            "*本页面由自动化工具生成，每日更新*"
-        ])
-        
         return "\n".join(content)
     
     def _generate_producthunt_markdown_content(self, products: List[Dict], date: datetime) -> str:
         """生成ProductHunt Markdown内容"""
         date_str = date.strftime('%Y年%m月%d日')
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         # 生成头部
         content = [
@@ -128,64 +107,34 @@ class MarkdownGenerator:
         for i, product in enumerate(products, 1):
             content.append(self._generate_product_section(product, i))
         
-        # 添加统计信息
-        content.extend([
-            "## 📈 统计信息",
-            "",
-            "| 指标 | 数值 |",
-            "|------|------|",
-            f"| 总产品数 | {len(products)} |",
-            f"| 平均投票数 | {self._calculate_average_votes(products):.0f} |",
-            "",
-            "## 🔗 相关链接",
-            "",
-            "- [ProductHunt](https://www.producthunt.com) - 官方产品页面",
-            "- [历史记录](../) - 查看历史记录",
-            "",
-            "---",
-            "",
-            "*本页面由自动化工具生成，每日更新*"
-        ])
-        
         return "\n".join(content)
     
     def _generate_repository_section(self, repo: Dict, index: int) -> str:
         """生成单个仓库的Markdown部分"""
         stars_str = self._format_number(repo.get('stars', 0))
         forks_str = self._format_number(repo.get('forks', 0))
-        today_stars_str = self._format_number(repo.get('today_stars', 0))
         
         # 生成标签字符串
         topics_str = ""
         if repo.get('topics'):
             topics_str = " ".join([f"`{topic}`" for topic in repo['topics']])
         
-        # 生成语言徽章
-        language = repo.get('language', 'Unknown')
-        language_badge = f"![{language}](https://img.shields.io/badge/-{language}-3776AB?style=flat&logo={language.lower()}&logoColor=white)"
-        
         # 生成仓库部分
         section = [
-            f"## {index}. {repo['name']}",
+            f"## {index}. [{repo['name']}]({repo['url']})",
             "",
-            f"🔗 **项目地址**: [{repo['name']}]({repo['url']})",
+            f"星标数: {stars_str} | Fork数: {forks_str} | 语言: {repo.get('language', 'Unknown')}",
             "",
-            f"星标数: {stars_str} | Fork数: {forks_str} | 语言: {language}",
+            f"**描述**: {repo.get('description', '暂无描述')}",
             "",
-            "**英文描述**:",
-            f"> {repo.get('description', '暂无描述')}",
-            "",
-            "**中文翻译**:",
-            f"> {repo.get('description_zh', '暂无中文翻译')}",
+            f"**翻译**: {repo.get('description_zh', '暂无描述')}",
             ""
         ]
         
         # 添加标签
         if topics_str:
             section.extend([
-                "### 🏷️ 标签",
-                "",
-                topics_str,
+                "**标签**: " + topics_str,
                 ""
             ])
         
@@ -205,26 +154,20 @@ class MarkdownGenerator:
         
         # 生成产品部分
         section = [
-            f"## {index}. {product['name']}",
-            "",
-            f"🔗 **产品地址**: [{product['name']}]({product['url']})",
+            f"## {index}. [{product['name']}]({product['url']})",
             "",
             f"投票数: {votes_str}",
             "",
-            "**英文描述**:",
-            f"> {product.get('description', '暂无描述')}",
+            f"**描述**: {product.get('description', '暂无描述')}",
             "",
-            "**中文翻译**:",
-            f"> {product.get('description_zh', '暂无中文翻译')}",
+            f"**翻译**: {product.get('description_zh', '暂无描述')}",
             ""
         ]
         
         # 添加标签
         if tags_str:
             section.extend([
-                "### 🏷️ 标签",
-                "",
-                tags_str,
+                "**标签**: " + tags_str,
                 ""
             ])
         
@@ -236,7 +179,6 @@ class MarkdownGenerator:
     def generate_today_file(self, github_repos: List[Dict], producthunt_products: List[Dict], date: datetime):
         """生成今日热门文件（用于主页）"""
         today_file = os.path.join(self.output_dir, "index.md")
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         content = [
             "---",
@@ -247,42 +189,36 @@ class MarkdownGenerator:
             "",
             f"# 今日热门 - {date.strftime('%Y年%m月%d日')}",
             "",
-            f"> 最新更新: {current_time}",
-            "",
-            "## 🚀 GitHub 热门项目 (前5个)",
+            "## GitHub 热门项目 (前5个)",
             ""
         ]
         
         # 添加前5个GitHub项目的简要信息
         for i, repo in enumerate(github_repos[:5], 1):
             desc = repo.get('description_zh', repo.get('description', '暂无描述'))
-            content.append(f"{i}. **{repo['name']}** - {desc[:200]}...")
+            content.append(f"{i}. [{repo['name']}]({repo['url']}) - {desc}")
+
+        content.extend([
+            "",
+            f"  [完整列表](./github-trending-{date.strftime('%Y-%m-%d')}.md)",
+            ""
+        ])
         
         content.extend([
             "",
-            "## 🎯 ProductHunt 热门产品 (前5个)",
+            "## ProductHunt 热门产品 (前5个)",
             ""
         ])
         
         # 添加前5个ProductHunt产品的简要信息
         for i, product in enumerate(producthunt_products[:5], 1):
             desc = product.get('description_zh', product.get('description', '暂无描述'))
-            content.append(f"{i}. **{product['name']}** - {desc[:200]}...")
+            content.append(f"{i}. [{product['name']}]({product['url']}) - {desc}")
         
         content.extend([
             "",
-            "## 📊 今日统计",
-            "",
-            f"- **GitHub项目**: {len(github_repos)} 个",
-            f"- **ProductHunt产品**: {len(producthunt_products)} 个",
-            "",
-            "## 🔗 查看详情",
-            "",
-            f"👉 [GitHub完整列表](./github-trending-{date.strftime('%Y-%m-%d')}.md)",
-            f"👉 [ProductHunt完整列表](./producthunt-{date.strftime('%Y-%m-%d')}.md)",
-            "",
-            "---",
-            f"*自动更新于 {current_time}*"
+            f"  [完整列表](./producthunt-{date.strftime('%Y-%m-%d')}.md)",
+            ""
         ])
         
         try:
@@ -295,7 +231,6 @@ class MarkdownGenerator:
     def generate_github_history_page(self):
         """生成GitHub历史记录页面"""
         history_file = os.path.join(self.output_dir, "github-history.md")
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         # 获取所有GitHub历史文件
         pattern = os.path.join(self.output_dir, "github-trending-*.md")
@@ -309,74 +244,21 @@ class MarkdownGenerator:
             "---",
             "",
             "# GitHub 历史记录",
-            "",
-            "> GitHub 每日热门项目的历史记录，按日期倒序排列",
-            "",
-            "## 📅 历史记录",
             ""
         ]
         
-        # 按年份和月份分组显示
-        year_month_groups = {}
+        # 直接按日期列出所有记录
         for file in files:
             filename = os.path.basename(file)
             date_str = filename.replace("github-trending-", "").replace(".md", "")
             try:
                 date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-                year_month = date_obj.strftime("%Y年%m月")
-                if year_month not in year_month_groups:
-                    year_month_groups[year_month] = []
-                year_month_groups[year_month].append((date_obj, filename))
-            except:
-                continue
-        
-        # 按年月倒序排列
-        sorted_months = sorted(year_month_groups.keys(), reverse=True)
-        
-        for month in sorted_months:
-            content.append(f"### {month}")
-            content.append("")
-            
-            # 该月内的文件按日期倒序
-            files_in_month = sorted(year_month_groups[month], key=lambda x: x[0], reverse=True)
-            
-            for date_obj, filename in files_in_month:
-                formatted_date = date_obj.strftime("%m月%d日")
-                content.append(f"- [{formatted_date}](./{filename})")
-            
-            content.append("")
-        
-        content.extend([
-            "## 📊 统计信息",
-            "",
-            f"- **总记录数**: {len(files)} 条",
-            f"- **时间跨度**: {self._get_date_range(files)}",
-            "- **数据来源**: [GitHub Trending](https://github.com/trending)",
-            "- **更新频率**: 每日自动更新",
-            "",
-            "## 🔗 快速导航",
-            "",
-            "### 最近一周",
-            ""
-        ])
-        
-        # 添加最近一周的快速链接
-        recent_files = files[:7]  # 最近7个文件
-        for file in recent_files:
-            filename = os.path.basename(file)
-            date_str = filename.replace("github-trending-", "").replace(".md", "")
-            try:
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-                formatted_date = date_obj.strftime("%m月%d日")
+                formatted_date = date_obj.strftime("%Y年%m月%d日")
                 content.append(f"- [{formatted_date}](./{filename})")
             except:
                 continue
         
-        content.extend([
-            "",
-            "---",
-            f"*最后更新: {current_time}*"
-        ])
+        content.append("")
         
         try:
             with open(history_file, 'w', encoding='utf-8') as f:
@@ -388,7 +270,6 @@ class MarkdownGenerator:
     def generate_producthunt_history_page(self):
         """生成ProductHunt历史记录页面"""
         history_file = os.path.join(self.output_dir, "producthunt-history.md")
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         # 获取所有ProductHunt历史文件
         pattern = os.path.join(self.output_dir, "producthunt-*.md")
@@ -402,74 +283,21 @@ class MarkdownGenerator:
             "---",
             "",
             "# ProductHunt 历史记录",
-            "",
-            "> ProductHunt 每日热门产品的历史记录，按日期倒序排列",
-            "",
-            "## 📅 历史记录",
             ""
         ]
         
-        # 按年份和月份分组显示
-        year_month_groups = {}
+        # 直接按日期列出所有记录
         for file in files:
             filename = os.path.basename(file)
             date_str = filename.replace("producthunt-", "").replace(".md", "")
             try:
                 date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-                year_month = date_obj.strftime("%Y年%m月")
-                if year_month not in year_month_groups:
-                    year_month_groups[year_month] = []
-                year_month_groups[year_month].append((date_obj, filename))
-            except:
-                continue
-        
-        # 按年月倒序排列
-        sorted_months = sorted(year_month_groups.keys(), reverse=True)
-        
-        for month in sorted_months:
-            content.append(f"### {month}")
-            content.append("")
-            
-            # 该月内的文件按日期倒序
-            files_in_month = sorted(year_month_groups[month], key=lambda x: x[0], reverse=True)
-            
-            for date_obj, filename in files_in_month:
-                formatted_date = date_obj.strftime("%m月%d日")
-                content.append(f"- [{formatted_date}](./{filename})")
-            
-            content.append("")
-        
-        content.extend([
-            "## 📊 统计信息",
-            "",
-            f"- **总记录数**: {len(files)} 条",
-            f"- **时间跨度**: {self._get_date_range(files)}",
-            "- **数据来源**: [ProductHunt](https://www.producthunt.com)",
-            "- **更新频率**: 每日自动更新",
-            "",
-            "## 🔗 快速导航",
-            "",
-            "### 最近一周",
-            ""
-        ])
-        
-        # 添加最近一周的快速链接
-        recent_files = files[:7]  # 最近7个文件
-        for file in recent_files:
-            filename = os.path.basename(file)
-            date_str = filename.replace("producthunt-", "").replace(".md", "")
-            try:
-                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-                formatted_date = date_obj.strftime("%m月%d日")
+                formatted_date = date_obj.strftime("%Y年%m月%d日")
                 content.append(f"- [{formatted_date}](./{filename})")
             except:
                 continue
         
-        content.extend([
-            "",
-            "---",
-            f"*最后更新: {current_time}*"
-        ])
+        content.append("")
         
         try:
             with open(history_file, 'w', encoding='utf-8') as f:

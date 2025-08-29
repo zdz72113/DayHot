@@ -4,6 +4,11 @@ import re
 from typing import List, Dict, Optional
 import logging
 import time
+import json
+import os
+from datetime import datetime, timezone, timedelta
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -22,113 +27,238 @@ class ProductHuntScraper:
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
         })
+        
+        # 设置重试策略
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+    
+    def get_producthunt_token(self):
+        """获取 Product Hunt 访问令牌"""
+        # 优先使用 PRODUCTHUNT_DEVELOPER_TOKEN 环境变量
+        developer_token = os.getenv('PRODUCTHUNT_DEVELOPER_TOKEN')
+        if developer_token:
+            logger.info("使用 PRODUCTHUNT_DEVELOPER_TOKEN 环境变量")
+            return developer_token
+        
+        # 如果没有 developer token，尝试使用 client credentials 获取访问令牌
+        client_id = os.getenv('PRODUCTHUNT_CLIENT_ID')
+        client_secret = os.getenv('PRODUCTHUNT_CLIENT_SECRET')
+        
+        if not client_id or not client_secret:
+            logger.warning("Product Hunt client ID or client secret not found in environment variables")
+            return None
+        
+        # 使用 client credentials 获取访问令牌
+        token_url = "https://api.producthunt.com/v2/oauth/token"
+        payload = {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "grant_type": "client_credentials"
+        }
+        
+        try:
+            response = self.session.post(token_url, json=payload)
+            response.raise_for_status()
+            token_data = response.json()
+            return token_data.get("access_token")
+        except Exception as e:
+            logger.error(f"获取 Product Hunt 访问令牌时出错: {e}")
+            return None
     
     def get_trending_products(self, max_retries: int = 3) -> List[Dict]:
         """获取ProductHunt热门产品列表"""
-        for attempt in range(max_retries):
-            try:
-                url = f"{self.base_url}"
-                logger.info(f"正在抓取ProductHunt (尝试 {attempt + 1}/{max_retries}): {url}")
-                
-                response = self.session.get(url, timeout=30)
-                response.raise_for_status()
-                
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                # 尝试多种选择器策略
-                product_elements = []
-                
-                # 策略1: 查找特定的产品容器
-                selectors = [
-                    'div[data-test="post-item"]',
-                    'article[data-test="post-item"]',
-                    'div[class*="PostItem"]',
-                    'div[class*="post-item"]',
-                    'div[class*="ProductCard"]',
-                    'div[class*="product-card"]',
-                    'article[class*="PostItem"]',
-                    'article[class*="post-item"]',
-                    'div[class*="FeedItem"]',
-                    'div[class*="feed-item"]'
-                ]
-                
-                for selector in selectors:
-                    elements = soup.select(selector)
-                    if elements:
-                        product_elements = elements
-                        logger.info(f"使用选择器 '{selector}' 找到 {len(elements)} 个元素")
-                        break
-                
-                # 策略2: 如果策略1失败，尝试更通用的选择器
-                if not product_elements:
-                    generic_selectors = [
-                        'div[class*="post"]',
-                        'div[class*="product"]',
-                        'article',
-                        'div[class*="item"]',
-                        'div[class*="card"]'
-                    ]
-                    
-                    for selector in generic_selectors:
-                        elements = soup.select(selector)
-                        if len(elements) >= 5:  # 至少找到5个元素才认为是产品列表
-                            product_elements = elements
-                            logger.info(f"使用通用选择器 '{selector}' 找到 {len(elements)} 个元素")
-                            break
-                
-                # 策略3: 如果还是找不到，尝试查找包含产品链接的元素
-                if not product_elements:
-                    product_links = soup.find_all('a', href=re.compile(r'/posts/'))
-                    if product_links:
-                        # 找到包含产品链接的父元素
-                        parent_elements = set()
-                        for link in product_links[:20]:  # 限制数量
-                            parent = link.find_parent('div') or link.find_parent('article')
-                            if parent:
-                                parent_elements.add(parent)
-                        product_elements = list(parent_elements)
-                        logger.info(f"通过产品链接找到 {len(product_elements)} 个元素")
-                
-                if not product_elements:
-                    logger.error("未找到产品条目，尝试生成模拟数据")
-                    # 生成模拟数据用于测试
-                    return self._generate_mock_products()
-                
-                products = []
-                
-                for element in product_elements[:10]:  # 只取前10个
-                    try:
-                        product_info = self._parse_product_element(element)
-                        if product_info:
-                            products.append(product_info)
-                    except Exception as e:
-                        logger.warning(f"解析产品信息时出错: {e}")
-                        continue
-                
-                if products:
-                    logger.info(f"成功抓取到 {len(products)} 个产品")
-                    return products
-                else:
-                    logger.warning("未解析到任何产品信息，使用模拟数据")
-                    return self._generate_mock_products()
-                    
-            except Exception as e:
-                logger.error(f"抓取ProductHunt页面失败 (尝试 {attempt + 1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)
-                    continue
-                return self._generate_mock_products()
+        # 首先尝试使用API
+        try:
+            products = self._fetch_from_api()
+            if products:
+                logger.info(f"成功从API抓取到 {len(products)} 个产品")
+                return products[:10]  # 只返回前10个
+        except Exception as e:
+            logger.warning(f"API抓取失败: {e}")
+
+        return []
         
-        return self._generate_mock_products()
+        # # 如果API失败，尝试网页抓取
+        # try:
+        #     products = self._scrape_webpage()
+        #     if products:
+        #         logger.info(f"成功从网页抓取到 {len(products)} 个产品")
+        #         return products[:10]  # 只返回前10个
+        # except Exception as e:
+        #     logger.warning(f"网页抓取失败: {e}")
+        
+        # # 如果都失败了，返回模拟数据
+        # logger.warning("所有抓取方法都失败，使用模拟数据")
+        # return self._generate_mock_products()
+    
+    def _fetch_from_api(self) -> List[Dict]:
+        """从Product Hunt API获取数据"""
+        token = self.get_producthunt_token()
+        if not token:
+            raise Exception("无法获取Product Hunt访问令牌")
+        
+        # 获取昨天的数据
+        yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+        date_str = yesterday.strftime('%Y-%m-%d')
+        url = "https://api.producthunt.com/v2/api/graphql"
+        
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "DayHotBot/1.0",
+            "Origin": "https://dayhot.com",
+            "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+            "Connection": "keep-alive"
+        }
+
+        base_query = """
+        {
+          posts(order: VOTES, postedAfter: "%sT00:00:00Z", postedBefore: "%sT23:59:59Z", after: "%s") {
+            nodes {
+              id
+              name
+              tagline
+              description
+              votesCount
+              createdAt
+              featuredAt
+              website
+              url
+              media {
+                url
+                type
+                videoUrl
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+        """
+
+        all_posts = []
+        has_next_page = True
+        cursor = ""
+
+        while has_next_page and len(all_posts) < 30:
+            query = base_query % (date_str, date_str, cursor)
+            try:
+                response = self.session.post(url, headers=headers, json={"query": query})
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                logger.error(f"API请求失败: {e}")
+                raise Exception(f"Failed to fetch data from Product Hunt API: {e}")
+
+            data = response.json()
+            if 'data' not in data or 'posts' not in data['data']:
+                logger.error(f"API返回数据格式错误: {data}")
+                raise Exception("Invalid API response format")
+
+            posts_data = data['data']['posts']
+            posts = posts_data['nodes']
+            all_posts.extend(posts)
+
+            has_next_page = posts_data['pageInfo']['hasNextPage']
+            cursor = posts_data['pageInfo']['endCursor']
+
+        # 按投票数排序并转换为标准格式
+        sorted_posts = sorted(all_posts, key=lambda x: x.get('votesCount', 0), reverse=True)
+        products = []
+        
+        for post in sorted_posts[:10]:  # 只取前10个
+            product_info = {
+                'name': post.get('name', ''),
+                'url': post.get('url', ''),
+                'description': post.get('description', ''),
+                'tags': [],  # API中没有直接提供标签
+                'votes': post.get('votesCount', 0)
+            }
+            if product_info['name']:
+                products.append(product_info)
+        
+        return products
+    
+    def _scrape_webpage(self) -> List[Dict]:
+        """从网页抓取产品信息"""
+        try:
+            url = "https://www.producthunt.com"
+            logger.info(f"正在抓取ProductHunt网页: {url}")
+            
+            response = self.session.get(url, timeout=30)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # 查找产品卡片
+            products = []
+            
+            # 尝试多种选择器
+            selectors = [
+                '[data-test="post-item"]',
+                '[data-test="post-card"]',
+                '.post-item',
+                '.post-card',
+                'article[data-test*="post"]',
+                'div[class*="PostItem"]',
+                'div[class*="ProductCard"]'
+            ]
+            
+            product_elements = []
+            for selector in selectors:
+                elements = soup.select(selector)
+                if elements:
+                    product_elements = elements[:10]  # 只取前10个
+                    logger.info(f"使用选择器 '{selector}' 找到 {len(elements)} 个元素")
+                    break
+            
+            # 如果还是找不到，尝试查找包含产品链接的元素
+            if not product_elements:
+                product_links = soup.find_all('a', href=re.compile(r'/posts/'))
+                if product_links:
+                    parent_elements = set()
+                    for link in product_links[:20]:
+                        parent = link.find_parent('div') or link.find_parent('article')
+                        if parent:
+                            parent_elements.add(parent)
+                    product_elements = list(parent_elements)[:10]
+                    logger.info(f"通过产品链接找到 {len(product_elements)} 个元素")
+            
+            # 解析产品信息
+            for element in product_elements:
+                try:
+                    product_info = self._parse_product_element(element)
+                    if product_info:
+                        products.append(product_info)
+                except Exception as e:
+                    logger.warning(f"解析产品元素时出错: {e}")
+                    continue
+            
+            return products
+            
+        except Exception as e:
+            logger.error(f"网页抓取失败: {e}")
+            return []
     
     def _parse_product_element(self, element) -> Optional[Dict]:
         """解析单个产品元素"""
         try:
             # 获取产品名称
             name = ""
-            name_elem = element.find('h3') or element.find('h2') or element.find('h1')
-            if name_elem:
-                name = name_elem.get_text().strip()
+            name_selectors = ['h3', 'h2', 'h1', '[data-test="post-name"]', '.post-name']
+            for selector in name_selectors:
+                name_elem = element.select_one(selector)
+                if name_elem:
+                    name = name_elem.get_text().strip()
+                    break
             
             # 获取产品链接
             url = ""
@@ -142,9 +272,12 @@ class ProductHuntScraper:
             
             # 获取产品描述
             description = ""
-            desc_elem = element.find('p') or element.find('div', class_=re.compile(r'.*description.*'))
-            if desc_elem:
-                description = desc_elem.get_text().strip()
+            desc_selectors = ['p', '[data-test="post-tagline"]', '.post-tagline', '.description']
+            for selector in desc_selectors:
+                desc_elem = element.select_one(selector)
+                if desc_elem:
+                    description = desc_elem.get_text().strip()
+                    break
             
             # 获取标签
             tags = []
@@ -156,10 +289,13 @@ class ProductHuntScraper:
             
             # 获取投票数
             votes = 0
-            votes_elem = element.find('span', class_=re.compile(r'.*vote.*'))
-            if votes_elem:
-                votes_text = votes_elem.get_text().strip()
-                votes = self._parse_number(votes_text)
+            votes_selectors = ['[data-test="vote-count"]', '.vote-count', 'span[class*="vote"]']
+            for selector in votes_selectors:
+                votes_elem = element.select_one(selector)
+                if votes_elem:
+                    votes_text = votes_elem.get_text().strip()
+                    votes = self._parse_number(votes_text)
+                    break
             
             # 如果没有找到基本信息，尝试备用方法
             if not name and not description:
