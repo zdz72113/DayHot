@@ -73,9 +73,10 @@ class DayHotTool:
             
             if not github_repos:
                 logger.error("未获取到任何GitHub仓库数据")
-                return False
-            
-            logger.info(f"成功抓取到 {len(github_repos)} 个GitHub仓库")
+                github_repos = []
+                # return False
+            else:
+                logger.info(f"成功抓取到 {len(github_repos)} 个GitHub仓库")
             
             # 2. 抓取ProductHunt数据
             logger.info("步骤2: 抓取ProductHunt数据")
