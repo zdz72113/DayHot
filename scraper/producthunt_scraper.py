@@ -74,7 +74,7 @@ class ProductHuntScraper:
             except Exception as e:
                 logger.warning(f"API抓取失败 (第{attempt + 1}次): {e}")
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # 指数退避
+                    wait_time = 10 * (attempt + 1)
                     time.sleep(wait_time)
         
         # 如果所有重试都失败，返回空列表
