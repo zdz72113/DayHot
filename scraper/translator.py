@@ -127,6 +127,109 @@ class DeepSeekTranslator:
         
         return translated_products
     
+    def translate_news(self, news_list: List[Dict]) -> List[Dict]:
+        """
+        批量翻译和总结新闻信息
+        
+        Args:
+            news_list: 新闻信息列表
+            
+        Returns:
+            包含中文总结的新闻信息列表
+        """
+        translated_news = []
+        
+        for i, news in enumerate(news_list):
+            try:
+                logger.info(f"正在处理第 {i+1}/{len(news_list)} 条新闻: {news.get('title', 'Unknown')[:50]}...")
+                
+                # 生成新闻总结
+                summary = self.summarize_news_content(
+                    news.get('content', ''), 
+                    news.get('title', '')
+                )
+                news['summary_zh'] = summary
+                
+                # 添加延迟避免API限制
+                time.sleep(1)
+                
+                translated_news.append(news)
+                
+            except Exception as e:
+                logger.error(f"处理新闻 {news.get('title', 'Unknown')} 时出错: {e}")
+                # 如果处理失败，保留原文
+                news['summary_zh'] = news.get('title', '')
+                translated_news.append(news)
+        
+        return translated_news
+    
+    def summarize_news_content(self, content: str, title: str = "") -> str:
+        """
+        总结新闻内容
+        
+        Args:
+            content: 新闻内容
+            title: 新闻标题
+            
+        Returns:
+            中文总结（10-200字）
+        """
+        if not content and not title:
+            return "暂无内容"
+        
+        try:
+            # 构建总结提示词
+            prompt = f"""请将以下新闻内容翻译并总结成10-200字的中文摘要，要求：
+1. 准确翻译原文内容
+2. 突出核心信息和关键点
+3. 语言流畅自然
+4. 字数控制在10-200字之间
+5. 如果内容较短，请提供更详细的翻译和解释
+
+标题：{title}
+
+内容：{content[:5000] if content else '无详细内容'}
+
+请直接给出中文总结，不要添加任何解释或前缀："""
+            
+            response = self._call_deepseek_api(prompt)
+            
+            if response:
+                # 清理响应内容
+                summary = response.strip()
+                
+                # 移除可能的"总结："等前缀
+                prefixes = ["总结：", "摘要：", "概括：", "翻译：", "总结", "摘要", "概括", "翻译"]
+                for prefix in prefixes:
+                    if summary.startswith(prefix):
+                        summary = summary[len(prefix):].strip()
+                
+                # 确保字数在10-200字之间
+                if len(summary) < 10:
+                    # 如果太短，尝试用标题补充
+                    if title and len(title) > 5:
+                        summary = f"{title}：{summary}"
+                    else:
+                        summary = summary + "（详细内容请查看原文）"
+                elif len(summary) > 200:
+                    summary = summary[:200] + "..."
+                
+                return summary
+            else:
+                # 如果API调用失败，返回标题的翻译版本
+                if title:
+                    return f"{title}（详细内容请查看原文）"
+                else:
+                    return "内容总结失败"
+                    
+        except Exception as e:
+            logger.error(f"总结新闻内容出错: {e}")
+            # 返回标题作为备选
+            if title:
+                return f"{title}（详细内容请查看原文）"
+            else:
+                return "总结失败"
+    
     def _call_deepseek_api(self, prompt: str) -> str:
         """
         调用DeepSeek API

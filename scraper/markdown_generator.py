@@ -55,6 +55,27 @@ class MarkdownGenerator:
             logger.error(f"生成ProductHunt Markdown文件失败: {e}")
             return ""
     
+    def generate_daily_hackernews_markdown(self, news_list: List[Dict], date: datetime = None) -> str:
+        """生成每日Hacker News的Markdown文件"""
+        if date is None:
+            date = datetime.now()
+        
+        filename = f"hackernews-{date.strftime('%Y-%m-%d')}.md"
+        filepath = os.path.join(self.output_dir, filename)
+        
+        try:
+            content = self._generate_hackernews_markdown_content(news_list, date)
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            logger.info(f"Hacker News Markdown文件已生成: {filepath}")
+            return filepath
+            
+        except Exception as e:
+            logger.error(f"生成Hacker News Markdown文件失败: {e}")
+            return ""
+    
     def _generate_github_markdown_content(self, repositories: List[Dict], date: datetime) -> str:
         """生成GitHub Markdown内容"""
         date_str = date.strftime('%Y年%m月%d日')
@@ -106,6 +127,33 @@ class MarkdownGenerator:
         # 生成产品列表
         for i, product in enumerate(products, 1):
             content.append(self._generate_product_section(product, i))
+        
+        return "\n".join(content)
+    
+    def _generate_hackernews_markdown_content(self, news_list: List[Dict], date: datetime) -> str:
+        """生成Hacker News Markdown内容"""
+        date_str = date.strftime('%Y年%m月%d日')
+        
+        # 生成头部
+        content = [
+            "---",
+            f"title: Hacker News 每日热门 - {date_str}",
+            f"description: Hacker News {date_str} 热门新闻",
+            f"date: {date.strftime('%Y-%m-%d')}",
+            "tags:",
+            "  - hackernews",
+            "  - news",
+            f"  - {date.strftime('%Y')}",
+            f"  - {date.strftime('%m')}",
+            "---",
+            "",
+            f"# Hacker News 每日热门 - {date_str}",
+            "",
+        ]
+        
+        # 生成新闻列表
+        for i, news in enumerate(news_list, 1):
+            content.append(self._generate_news_section(news, i))
         
         return "\n".join(content)
     
@@ -176,7 +224,27 @@ class MarkdownGenerator:
         
         return "\n".join(section)
     
-    def generate_today_file(self, github_repos: List[Dict], producthunt_products: List[Dict], date: datetime):
+    def _generate_news_section(self, news: Dict, index: int) -> str:
+        """生成单个新闻的Markdown部分"""
+        score_str = self._format_number(news.get('score', 0))
+        comments_str = self._format_number(news.get('comments', 0))
+        
+        # 生成新闻部分
+        section = [
+            f"## {index}. [{news['title']}]({news['url']})",
+            "",
+            f"分数: {score_str} | 评论数: {comments_str}",
+            "",
+            f"**中文总结**: {news.get('summary_zh', '暂无总结')}",
+            ""
+        ]
+        
+        section.append("---")
+        section.append("")
+        
+        return "\n".join(section)
+    
+    def generate_today_file(self, github_repos: List[Dict], producthunt_products: List[Dict], hackernews_news: List[Dict], date: datetime):
         """生成今日热门文件（用于主页）"""
         today_file = os.path.join(self.output_dir, "index.md")
         
@@ -218,6 +286,23 @@ class MarkdownGenerator:
         content.extend([
             "",
             f"  [完整列表](./producthunt-{date.strftime('%Y-%m-%d')}.md)",
+            ""
+        ])
+        
+        content.extend([
+            "",
+            "## Hacker News 热门新闻 (前5条)",
+            ""
+        ])
+        
+        # 添加前5条Hacker News新闻的简要信息
+        for i, news in enumerate(hackernews_news[:5], 1):
+            summary = news.get('summary_zh', '暂无总结')
+            content.append(f"{i}. [{news['title']}]({news['url']}) - {summary}")
+        
+        content.extend([
+            "",
+            f"  [完整列表](./hackernews-{date.strftime('%Y-%m-%d')}.md)",
             ""
         ])
         
@@ -305,6 +390,45 @@ class MarkdownGenerator:
             logger.info(f"ProductHunt历史记录页面已生成: {history_file}")
         except Exception as e:
             logger.error(f"生成ProductHunt历史记录页面失败: {e}")
+    
+    def generate_hackernews_history_page(self):
+        """生成Hacker News历史记录页面"""
+        history_file = os.path.join(self.output_dir, "hackernews-history.md")
+        
+        # 获取所有Hacker News历史文件
+        pattern = os.path.join(self.output_dir, "hackernews-*.md")
+        files = glob.glob(pattern)
+        files.sort(reverse=True)  # 按日期倒序
+        
+        content = [
+            "---",
+            "title: Hacker News 历史记录",
+            "description: Hacker News 每日热门新闻历史记录",
+            "---",
+            "",
+            "# Hacker News 历史记录",
+            ""
+        ]
+        
+        # 直接按日期列出所有记录
+        for file in files:
+            filename = os.path.basename(file)
+            date_str = filename.replace("hackernews-", "").replace(".md", "")
+            try:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                formatted_date = date_obj.strftime("%Y年%m月%d日")
+                content.append(f"- [{formatted_date}](./{filename})")
+            except:
+                continue
+        
+        content.append("")
+        
+        try:
+            with open(history_file, 'w', encoding='utf-8') as f:
+                f.write("\n".join(content))
+            logger.info(f"Hacker News历史记录页面已生成: {history_file}")
+        except Exception as e:
+            logger.error(f"生成Hacker News历史记录页面失败: {e}")
     
     def _format_number(self, num: int) -> str:
         """格式化数字显示"""

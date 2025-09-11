@@ -14,6 +14,7 @@ from typing import List, Dict
 from config import Config
 from scraper.github_scraper import GitHubTrendingScraper
 from scraper.producthunt_scraper import ProductHuntScraper
+from scraper.hackernews_scraper import HackerNewsScraper
 from scraper.translator import DeepSeekTranslator
 from scraper.markdown_generator import MarkdownGenerator
 from build_site import MkDocsBuilder
@@ -42,6 +43,7 @@ class DayHotTool:
             # 初始化组件
             self.github_scraper = GitHubTrendingScraper()
             self.producthunt_scraper = ProductHuntScraper()
+            self.hackernews_scraper = HackerNewsScraper()
             self.translator = DeepSeekTranslator()
             self.markdown_generator = MarkdownGenerator()
             self.site_builder = MkDocsBuilder()
@@ -88,16 +90,28 @@ class DayHotTool:
             else:
                 logger.info(f"成功抓取到 {len(producthunt_products)} 个ProductHunt产品")
             
-            # 3. 翻译项目描述
-            logger.info("步骤3: 翻译项目描述")
+            # 3. 抓取Hacker News数据
+            logger.info("步骤3: 抓取Hacker News数据")
+            hackernews_news = self.hackernews_scraper.get_trending_news()
+            
+            if not hackernews_news:
+                logger.warning("未获取到任何Hacker News数据")
+                hackernews_news = []
+            else:
+                logger.info(f"成功抓取到 {len(hackernews_news)} 条Hacker News新闻")
+            
+            # 4. 翻译项目描述和新闻内容
+            logger.info("步骤4: 翻译项目描述和新闻内容")
             translated_github_repos = self.translator.translate_repositories(github_repos)
             translated_producthunt_products = self.translator.translate_products(producthunt_products)
+            translated_hackernews_news = self.translator.translate_news(hackernews_news)
             
             logger.info(f"成功翻译 {len(translated_github_repos)} 个GitHub仓库的描述")
             logger.info(f"成功翻译 {len(translated_producthunt_products)} 个ProductHunt产品的描述")
+            logger.info(f"成功翻译 {len(translated_hackernews_news)} 条Hacker News新闻")
             
-            # 4. 生成Markdown文件
-            logger.info("步骤4: 生成Markdown文件")
+            # 5. 生成Markdown文件
+            logger.info("步骤5: 生成Markdown文件")
             
             # 生成GitHub每日详细文件
             github_file = self.markdown_generator.generate_daily_trending_markdown(
@@ -109,22 +123,29 @@ class DayHotTool:
                 translated_producthunt_products, current_date
             )
             
+            # 生成Hacker News每日详细文件
+            hackernews_file = self.markdown_generator.generate_daily_hackernews_markdown(
+                translated_hackernews_news, current_date
+            )
+            
             # 生成首页文件
             self.markdown_generator.generate_today_file(
-                translated_github_repos, translated_producthunt_products, current_date
+                translated_github_repos, translated_producthunt_products, translated_hackernews_news, current_date
             )
             
             # 生成历史记录页面
             self.markdown_generator.generate_github_history_page()
             self.markdown_generator.generate_producthunt_history_page()
+            self.markdown_generator.generate_hackernews_history_page()
             
-            if github_file and producthunt_file:
+            if github_file and producthunt_file and hackernews_file:
                 logger.info("Markdown文件生成成功")
                 logger.info(f"GitHub文件: {github_file}")
                 logger.info(f"ProductHunt文件: {producthunt_file}")
+                logger.info(f"Hacker News文件: {hackernews_file}")
                 
-                # 5. 构建网站
-                logger.info("步骤5: 构建MkDocs网站")
+                # 6. 构建网站
+                logger.info("步骤6: 构建MkDocs网站")
                 if self.site_builder.build_site():
                     logger.info("网站构建成功！")
                 else:

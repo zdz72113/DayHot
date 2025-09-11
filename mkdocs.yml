@@ -1,5 +1,5 @@
 site_name: 每日热门
-site_description: GitHub 每日热门项目和 ProductHunt 每日热门产品
+site_description: GitHub 每日热门项目、ProductHunt 每日热门产品和 Hacker News 每日热门新闻
 site_author: royzheng2017@gmail.com
 
 # 主题配置
@@ -33,6 +33,7 @@ nav:
   - 首页: index.md
   - GitHub 历史记录: github-history.md
   - ProductHunt 历史记录: producthunt-history.md
+  - Hacker News 历史记录: hackernews-history.md
 
 # 插件配置
 plugins:
