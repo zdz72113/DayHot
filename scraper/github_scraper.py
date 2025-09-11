@@ -4,6 +4,7 @@ import re
 from typing import List, Dict, Optional
 import logging
 import time
+import json
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,7 @@ class GitHubTrendingScraper:
     
     def __init__(self):
         self.base_url = "https://github.com/trending"
+        self.api_base_url = "https://api.github.com"
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -75,6 +77,10 @@ class GitHubTrendingScraper:
                     try:
                         repo_info = self._parse_repository_article(article)
                         if repo_info:
+                            # 获取仓库详细信息
+                            repo_details = self._get_repository_details(repo_info['name'])
+                            if repo_details:
+                                repo_info.update(repo_details)
                             repositories.append(repo_info)
                     except Exception as e:
                         logger.warning(f"解析仓库信息时出错: {e}")
@@ -221,4 +227,33 @@ class GitHubTrendingScraper:
                 return int(float(text))
         except:
             return 0
+    
+    def _get_repository_details(self, repo_name: str) -> Optional[Dict]:
+        """获取仓库详细信息（README等）"""
+        try:
+            # 使用GitHub API获取README内容
+            readme_url = f"{self.api_base_url}/repos/{repo_name}/readme"
+            
+            response = self.session.get(readme_url, timeout=30)
+            if response.status_code == 200:
+                readme_data = response.json()
+                if 'content' in readme_data:
+                    # 解码base64内容
+                    import base64
+                    readme_content = base64.b64decode(readme_data['content']).decode('utf-8')
+                    
+                    # 限制内容长度
+                    if len(readme_content) > 5000:
+                        readme_content = readme_content[:5000] + "..."
+                    
+                    return {
+                        'readme_content': readme_content
+                    }
+            
+            logger.warning(f"无法获取仓库 {repo_name} 的README内容")
+            return None
+            
+        except Exception as e:
+            logger.warning(f"获取仓库 {repo_name} 详细信息失败: {e}")
+            return None
 

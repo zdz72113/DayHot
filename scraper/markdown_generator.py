@@ -158,7 +158,7 @@ class MarkdownGenerator:
         return "\n".join(content)
     
     def _generate_repository_section(self, repo: Dict, index: int) -> str:
-        """生成单个仓库的Markdown部分"""
+        """生成单个仓库的Markdown部分（详情页）"""
         stars_str = self._format_number(repo.get('stars', 0))
         forks_str = self._format_number(repo.get('forks', 0))
         
@@ -178,6 +178,25 @@ class MarkdownGenerator:
             f"**翻译**: {repo.get('description_zh', '暂无描述')}",
             ""
         ]
+        
+        # 添加主要特性（如果有）
+        if repo.get('features_zh') and len(repo['features_zh']) > 0:
+            section.extend([
+                "**主要特性**:",
+                ""
+            ])
+            for feature in repo['features_zh']:
+                section.append(f"- {feature}")
+            section.append("")
+        
+        # 添加应用场景（如果有）
+        if repo.get('use_cases_zh'):
+            section.extend([
+                "**应用场景**:",
+                "",
+                f"{repo['use_cases_zh']}",
+                ""
+            ])
         
         # 添加标签
         if topics_str:
@@ -263,8 +282,21 @@ class MarkdownGenerator:
         
         # 添加前5个GitHub项目的简要信息
         for i, repo in enumerate(github_repos[:5], 1):
+            # 使用新的显示格式
             desc = repo.get('description_zh', repo.get('description', '暂无描述'))
-            content.append(f"{i}. [{repo['name']}]({repo['url']}) - {desc}")
+            core_value = repo.get('core_value_zh', '')
+            use_cases = repo.get('use_cases_zh', '')
+            
+            # 构建显示内容
+            repo_info = f"{i}. [{repo['name']}]({repo['url']}) - {desc}"
+            content.append(repo_info)
+            
+            # 添加核心价值和适用场景（如果有）
+            if core_value:
+                content.append(f"**核心价值**: {core_value}")
+            if use_cases:
+                content.append(f"**适用场景**: {use_cases}")
+            content.append("")  # 空行分隔
 
         content.extend([
             "",
