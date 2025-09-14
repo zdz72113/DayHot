@@ -1,12 +1,13 @@
 # DayHot - 每日热门项目与产品聚合
 
-一个自动化的工具，每日抓取 GitHub 热门项目和 ProductHunt 热门产品，翻译描述并生成静态网站。
+一个自动化的工具，每日抓取 GitHub 热门项目、ProductHunt 热门产品和 Hacker News 热门新闻，翻译描述并生成静态网站。
 
 ## 🌟 功能特性
 
 - **GitHub 热门项目抓取**: 自动抓取 GitHub Trending 页面的热门开源项目
 - **ProductHunt 热门产品抓取**: 自动抓取 ProductHunt 页面的热门产品
-- **AI 翻译**: 使用 DeepSeek AI 将项目描述翻译成中文
+- **Hacker News 热门新闻抓取**: 自动抓取 Hacker News 的热门技术新闻
+- **AI 翻译**: 使用 DeepSeek AI 将项目描述和新闻内容翻译成中文
 - **自动生成文档**: 生成结构化的 Markdown 文档
 - **静态网站**: 使用 MkDocs 构建静态网站
 - **每日更新**: 支持定时任务自动更新
@@ -26,6 +27,7 @@ DayHot/
     ├── __init__.py
     ├── github_scraper.py     # GitHub 抓取器
     ├── producthunt_scraper.py # ProductHunt 抓取器
+    ├── hackernews_scraper.py # Hacker News 抓取器
     ├── translator.py          # 翻译器
     └── markdown_generator.py  # Markdown 生成器
 ```
@@ -71,9 +73,10 @@ python scheduler.py
 
 生成的静态网站包含：
 
-- **主页**: 显示今日 GitHub 前 5 个热门项目和 ProductHunt 前 5 个热门产品
+- **主页**: 显示今日 GitHub 前 5 个热门项目、ProductHunt 前 5 个热门产品和 Hacker News 前 5 个热门新闻
 - **GitHub 历史记录**: 查看历史 GitHub 热门项目
 - **ProductHunt 历史记录**: 查看历史 ProductHunt 热门产品
+- **Hacker News 历史记录**: 查看历史 Hacker News 热门新闻
 
 ## 🛠️ 技术栈
 
@@ -93,6 +96,7 @@ python scheduler.py
 
 - [GitHub Trending](https://github.com/trending) - GitHub 热门项目
 - [ProductHunt](https://www.producthunt.com) - 产品发现平台
+- [Hacker News](https://news.ycombinator.com) - 技术新闻社区
 - [DeepSeek AI](https://www.deepseek.com) - AI 翻译服务
 - [MkDocs](https://www.mkdocs.org) - 静态网站生成器
 
