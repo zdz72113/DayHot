@@ -51,8 +51,6 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 # Product Hunt配置
 PRODUCTHUNT_DEVELOPER_TOKEN=your_producthunt_developer_token_here
-PRODUCTHUNT_CLIENT_ID=your_producthunt_api_key_here
-PRODUCTHUNT_CLIENT_SECRET=your_producthunt_api_secret_here
 ```
 
 ### 3. 运行程序
